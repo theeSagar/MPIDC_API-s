@@ -9,9 +9,11 @@ class CustomUserProfile(models.Model):
     user = models.OneToOneField(User, null=True, blank=True, on_delete=models.CASCADE)     
     company_name=models.CharField(max_length=255,blank=False)
     name = models.CharField(max_length=255, blank=False, null=False)
-    mobile_no = models.CharField(max_length=12, unique=True, null=False, blank=False)
+    mobile_no = models.CharField(max_length=13, unique=True, null=False, blank=False)
     email_id = models.EmailField(unique=True, null=False, blank=False)
     password = models.CharField(max_length=255, null=False, blank=False)
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    otp_expiry = models.DateTimeField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
         """ Hash password before saving to the database """

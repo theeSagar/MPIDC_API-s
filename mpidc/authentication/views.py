@@ -8,6 +8,12 @@ from .serializers import UserSignupSerializer
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
+from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client
+from django.conf import settings
+import secrets
+from datetime import timedelta
+from django.utils import timezone
 
 
 
@@ -31,10 +37,16 @@ class SignUp(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if len(mobile_no) != 12:
-            return Response({
-                "status": "Mobile number must be exactly 12 digits."
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if not mobile_no.startswith("+91"):
+            return Response(
+                {"status":"Mobile number should start with +91"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        if len(mobile_no) != 13 or not mobile_no[3:].isdigit():
+            return Response(
+                {"status": "Mobile number must be 10 digits long after '+91'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # this checks if the user with same mobile_no and email_id is present in db 
         existing_user = CustomUserProfile.objects.filter(mobile_no=mobile_no).exists() or CustomUserProfile.objects.filter(email_id=email_id).exists()
@@ -147,7 +159,96 @@ class UserProfile(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+class ForgotPasswordRequest(APIView):
 
+    def post(self, request):
+        mobile_no = request.data.get('mobile_no')
+        print("_____________,",mobile_no)
         
+        if not mobile_no:
+            return Response({"status": "Mobile number is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Validate mobile number format
+        if not mobile_no.startswith('+91') and not len(mobile_no)==12:
+            return Response(
+                {"status": "Mobile number must start with country code (e.g., +91) adn should be of 12 digits only."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user_profile = CustomUserProfile.objects.get(mobile_no=mobile_no)
+            print(user_profile)
+        except CustomUserProfile.DoesNotExist:
+            return Response({"status": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate OTP static as per now
+        # otp = secrets.randbelow(1_000_000)
+        # otp = f"{otp:06d}"
+        otp='123456'
         
+        # Save OTP to user profile
+        user_profile.otp = otp
+        user_profile.otp_expiry = timezone.now() + timedelta(minutes=15)
+        user_profile.save()
+        user_profile.refresh_from_db()
+        print("Updated OTP:", user_profile.otp)
+        print("Updated OTP Expiry:", user_profile.otp_expiry)
+        # # Initialize Twilio client
+        # client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        
+        # try:
+        #     # Send SMS via Twilio
+        #     message = client.messages.create(
+        #         body=f'Your OTP is: {otp}',
+        #         from_=settings.TWILIO_PHONE_NUMBER,  
+        #         to=mobile_no                        
+        #     )
+            
+        #     # Optional: Store the message SID for tracking
+        #     user_profile.twilio_message_sid = message.sid
+        #     user_profile.save()
+
+        # except TwilioRestException as e:
+        #     # Handle Twilio errors
+        #     return Response(
+        #         {"status": f"SMS sending failed: {str(e)}"},
+        #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #     )
+
+        return Response({
+            "status": f"OTP sent successfully to your registered mobile number ending with +91XXXXX{mobile_no[-3:]}",
+           }, status=status.HTTP_200_OK)
+class ForgotPasswordVerify(APIView):
+    def post(self, request):
+        mobile_no = request.data.get('mobile_no')
+        otp = request.data.get('otp')
+        new_password = request.data.get('new_password')
+
+        if not all([mobile_no, otp, new_password]):
+            return Response({"status": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_profile = CustomUserProfile.objects.get(mobile_no=mobile_no)
+        except CustomUserProfile.DoesNotExist:
+            return Response({"status": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check OTP validity
+        if user_profile.otp != otp:
+            return Response({"status": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if timezone.now() > user_profile.otp_expiry:
+            return Response({"status": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update password
+        user = user_profile.user
+        user.set_password(new_password)
+        user.save()
+
+        # Clear OTP fields
+        user_profile.otp = None
+        user_profile.otp_expiry = None
+        user_profile.save()
+
+        return Response({
+            "status": "Password reset successful now login with your new password",
+           }, status=status.HTTP_200_OK)
