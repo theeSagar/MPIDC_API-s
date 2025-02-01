@@ -14,6 +14,8 @@ from django.conf import settings
 import secrets
 from datetime import timedelta
 from django.utils import timezone
+from django.core.mail import send_mail
+
 
 
 
@@ -163,6 +165,7 @@ class ForgotPasswordRequest(APIView):
 
     def post(self, request):
         mobile_no = request.data.get('mobile_no')
+        # email_id =request.get("email_id")
         print("_____________,",mobile_no)
         
         if not mobile_no:
@@ -186,13 +189,10 @@ class ForgotPasswordRequest(APIView):
         # otp = f"{otp:06d}"
         otp='123456'
         
-        # Save OTP to user profile
+        # Saving opt and expiry time in db
         user_profile.otp = otp
         user_profile.otp_expiry = timezone.now() + timedelta(minutes=15)
         user_profile.save()
-        user_profile.refresh_from_db()
-        print("Updated OTP:", user_profile.otp)
-        print("Updated OTP Expiry:", user_profile.otp_expiry)
         # # Initialize Twilio client
         # client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         
@@ -214,10 +214,25 @@ class ForgotPasswordRequest(APIView):
         #         {"status": f"SMS sending failed: {str(e)}"},
         #         status=status.HTTP_500_INTERNAL_SERVER_ERROR
         #     )
-
+        email_id=user_profile.email_id
+        print("_______+_+_+___",email_id)
+        try:
+            send_mail(
+                subject='Your OTP for Password Reset',  # Email subject
+                message=f'Your OTP for password reset is: {otp} and valid for 15 minutes.', 
+                from_email=settings.DEFAULT_FROM_EMAIL,  # Sender email address
+                recipient_list=['sagar.karanveer1@gmail.com'],  # Recipient email
+                fail_silently=False,  
+            )
+        except Exception as e:
+            return Response(
+                {"status": f"Failed to send OTP via email: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         return Response({
-            "status": f"OTP sent successfully to your registered mobile number ending with +91XXXXX{mobile_no[-3:]}",
-           }, status=status.HTTP_200_OK)
+            "status": True,
+            "message": f"OTP sent successfully to your registered mobile number ending with +91XXXXX{mobile_no[-3:]} and email {email_id}"
+        }, status=status.HTTP_200_OK)
 class ForgotPasswordVerify(APIView):
     def post(self, request):
         mobile_no = request.data.get('mobile_no')
