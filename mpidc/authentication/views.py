@@ -221,7 +221,7 @@ class ForgotPasswordRequest(APIView):
                 subject='Your OTP for Password Reset',  # Email subject
                 message=f'Your OTP for password reset is: {otp} and valid for 15 minutes.', 
                 from_email=settings.DEFAULT_FROM_EMAIL,  # Sender email address
-                recipient_list=['sagar.karanveer1@gmail.com'],  # Recipient email
+                recipient_list=[email_id],
                 fail_silently=False,  
             )
         except Exception as e:
