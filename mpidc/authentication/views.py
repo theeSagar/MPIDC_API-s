@@ -35,7 +35,8 @@ class SignUp(APIView):
 
         if missing_fields:
             return Response(
-                {"status": f"Missing required fields: {', '.join(missing_fields)}"},
+                {"status":False,
+                "message": f"Missing required fields: {', '.join(missing_fields)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -81,7 +82,7 @@ class SignUp(APIView):
             custom_user_profile.save()
 
             return Response(
-                {
+                {   "status":True,
                     "message": "User registered successfully",
                     "username": custom_user_profile.name,
                     "email_id": custom_user_profile.email_id,
@@ -94,7 +95,8 @@ class SignUp(APIView):
         errors = serializer.errors
         formatted_errors = {field: errors[field][0] for field in errors}  # Extract the first error message
         return Response(
-            {"status":"Validation failed", "errors": formatted_errors},
+            {"status":False,
+            "message":"Validation failed", "errors": formatted_errors},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -240,7 +242,9 @@ class ForgotPasswordVerify(APIView):
         new_password = request.data.get('new_password')
 
         if not all([mobile_no, otp, new_password]):
-            return Response({"status": "All fields are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"status":False
+                             ,"message": "All fields are required"},
+                              status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user_profile = CustomUserProfile.objects.get(mobile_no=mobile_no)

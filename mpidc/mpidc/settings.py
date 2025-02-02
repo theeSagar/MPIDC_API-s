@@ -138,11 +138,13 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# settings.py
-# TWILIO_ACCOUNT_SID = 'AC5136bfbff6799b75e6d6f439e75614ba'  # From Twilio console
-# TWILIO_AUTH_TOKEN = '3731b3f3871f47cd660d7398b2ff87bf'    # From Twilio console
+
+# twilio Configrations-
+# TWILIO_ACCOUNT_SID = 'AC5136bfbff6799b75e6d6f439e75614ba'  
+# TWILIO_AUTH_TOKEN = '3731b3f3871f47cd660d7398b2ff87bf'    
 # TWILIO_PHONE_NUMBER = '+12313887578'
 
+# integrations with email-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
